@@ -38,6 +38,7 @@ $ brew install bos
 ```sh
 $ brew remove bos
 ```
+
 ## BOSCore Workflow
 BOSCore encourage community developer actively participate in contributing the code, members should follow the workflow below.
 ![BOSCore Workflow](./images/bos-workflow.png)
