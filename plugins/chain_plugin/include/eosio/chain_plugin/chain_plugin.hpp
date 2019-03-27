@@ -269,6 +269,7 @@ public:
       string      lower_bound;
       string      upper_bound;
       uint32_t    limit = 10;
+      uint32_t    row_count_limit = 100; //limit for table rowcount
       string      key_type;  // type of key specified by index_position
       string      index_position; // 1 - primary (first), 2 - secondary index (in order defined by multi_index), 3 - third index, etc
       string      encode_type{"dec"}; //dec, hex , default=dec
@@ -279,6 +280,7 @@ public:
    struct get_table_rows_result {
       vector<fc::variant> rows; ///< one row per item, either encoded as hex String or JSON object
       bool                more = false; ///< true if last element in data is not the end and sizeof data() < limit
+      uint32_t            totalRows = 0; ///< statistics table row count
    };
 
    get_table_rows_result get_table_rows( const get_table_rows_params& params )const;
@@ -470,12 +472,27 @@ public:
             }
          };
 
+         // total row count in 10ms
+         auto walk_table_row_count = [&]( auto itr, auto end_itr ) {
+            auto cur_time = fc::time_point::now();
+            auto end_time = cur_time + fc::microseconds(1000 * 10); /// 10ms max time
+             
+            for( unsigned int count = 0; cur_time <= end_time && count < p.row_count_limit && itr != end_itr; ++itr, cur_time = fc::time_point::now() ) {
+               
+                result.totalRows++;
+            }
+             
+         };
+
+
          auto lower = secidx.lower_bound( lower_bound_lookup_tuple );
          auto upper = secidx.upper_bound( upper_bound_lookup_tuple );
          if( p.reverse && *p.reverse ) {
             walk_table_row_range( boost::make_reverse_iterator(upper), boost::make_reverse_iterator(lower) );
+            walk_table_row_count( boost::make_reverse_iterator(upper), boost::make_reverse_iterator(lower) );
          } else {
             walk_table_row_range( lower, upper );
+            walk_table_row_count( lower, upper );
          }
       }
       return result;
@@ -544,12 +561,26 @@ public:
             }
          };
 
+                  // total row count in 10ms
+         auto walk_table_row_count = [&]( auto itr, auto end_itr ) {
+            auto cur_time = fc::time_point::now();
+            auto end_time = cur_time + fc::microseconds(1000 * 10); /// 10ms max time
+             
+            for( unsigned int count = 0; cur_time <= end_time && count < p.row_count_limit && itr != end_itr; ++itr, cur_time = fc::time_point::now() ) {
+               
+                result.totalRows++;
+            }
+             
+         };
+
          auto lower = idx.lower_bound( lower_bound_lookup_tuple );
          auto upper = idx.upper_bound( upper_bound_lookup_tuple );
          if( p.reverse && *p.reverse ) {
             walk_table_row_range( boost::make_reverse_iterator(upper), boost::make_reverse_iterator(lower) );
+            walk_table_row_count( boost::make_reverse_iterator(upper), boost::make_reverse_iterator(lower) );
          } else {
             walk_table_row_range( lower, upper );
+            walk_table_row_count( lower, upper );
          }
       }
       return result;
@@ -712,7 +743,7 @@ FC_REFLECT(eosio::chain_apis::read_only::get_block_header_state_params, (block_n
 FC_REFLECT( eosio::chain_apis::read_write::push_transaction_results, (transaction_id)(processed) )
 
 FC_REFLECT( eosio::chain_apis::read_only::get_table_rows_params, (json)(code)(scope)(table)(table_key)(lower_bound)(upper_bound)(limit)(key_type)(index_position)(encode_type)(reverse)(show_payer) )
-FC_REFLECT( eosio::chain_apis::read_only::get_table_rows_result, (rows)(more) );
+FC_REFLECT( eosio::chain_apis::read_only::get_table_rows_result, (rows)(more)(totalRows) );
 
 FC_REFLECT( eosio::chain_apis::read_only::get_table_by_scope_params, (code)(table)(lower_bound)(upper_bound)(limit)(reverse) )
 FC_REFLECT( eosio::chain_apis::read_only::get_table_by_scope_result_row, (code)(scope)(table)(payer)(count));
